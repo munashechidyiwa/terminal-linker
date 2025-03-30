@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -251,7 +252,7 @@ const TerminalTable = ({ terminals }: TerminalTableProps) => {
             <tr className="bg-nbsGreen text-white">
               <th className="py-3 px-4 text-left font-medium">
                 <div className="flex items-center">
-                  Terminal Name
+                  Merchant Name
                   <ArrowUpDown className="ml-2 h-4 w-4" />
                 </div>
               </th>
