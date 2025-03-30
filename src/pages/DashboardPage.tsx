@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -9,7 +10,7 @@ import {
   ArrowUpDown, 
   Plus 
 } from 'lucide-react';
-import { useTerminalStore, Branch } from '@/store/terminalStore';
+import { useTerminalStore, Branch, Terminal } from '@/store/terminalStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -231,7 +232,7 @@ const DashboardPage = () => {
 };
 
 interface TerminalTableProps {
-  terminals: ReturnType<typeof useTerminalStore.getState.getDispatchedTerminals>;
+  terminals: Terminal[];
 }
 
 const TerminalTable = ({ terminals }: TerminalTableProps) => {
