@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   name: z.string().min(2, {
-    message: "Terminal name must be at least 2 characters.",
+    message: "Merchant name must be at least 2 characters.",
   }),
   terminalId: z.string().min(5, {
     message: "Terminal ID must be at least 5 characters.",
@@ -146,16 +146,16 @@ const DispatchPage = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Terminal Name */}
+                {/* Merchant Name (previously Terminal Name) */}
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Terminal Name</FormLabel>
+                      <FormLabel>Merchant Name</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="e.g., iPOS_001" 
+                          placeholder="e.g., OK Supermarket" 
                           {...field} 
                           className="nbs-input-focus"
                         />
