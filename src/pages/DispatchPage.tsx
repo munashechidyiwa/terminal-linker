@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -91,6 +90,8 @@ const DispatchPage = () => {
     if (formData) {
       addTerminal({
         ...formData,
+        type: formData.type as TerminalType,
+        branch: formData.branch as Branch,
         dispatchDate: formData.dispatchDate.toISOString(),
       });
       

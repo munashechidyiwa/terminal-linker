@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -31,14 +30,12 @@ const DashboardPage = () => {
   const [endDate, setEndDate] = useState('');
   
   const { 
-    terminals, 
-    getDispatchedTerminals, 
-    getReturnedTerminals, 
+    terminals,
     filterTerminals 
   } = useTerminalStore();
   
-  const dispatchedTerminals = getDispatchedTerminals();
-  const returnedTerminals = getReturnedTerminals();
+  const dispatchedTerminals = terminals.filter(terminal => !terminal.isReturned);
+  const returnedTerminals = terminals.filter(terminal => terminal.isReturned);
   
   const filteredTerminals = filterTerminals({
     branch: branchFilter || undefined,
@@ -49,7 +46,6 @@ const DashboardPage = () => {
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // The filtering is already reactive due to state changes
   };
   
   const handleClearFilters = () => {
