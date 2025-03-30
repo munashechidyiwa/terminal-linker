@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -26,7 +25,7 @@ import { format } from 'date-fns';
 
 const DashboardPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [branchFilter, setBranchFilter] = useState<Branch | ''>('');
+  const [branchFilter, setBranchFilter] = useState<Branch | 'all'>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -39,7 +38,7 @@ const DashboardPage = () => {
   const returnedTerminals = terminals.filter(terminal => terminal.isReturned);
   
   const filteredTerminals = filterTerminals({
-    branch: branchFilter || undefined,
+    branch: branchFilter !== 'all' ? branchFilter as Branch : undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     searchTerm
@@ -51,7 +50,7 @@ const DashboardPage = () => {
   
   const handleClearFilters = () => {
     setSearchTerm('');
-    setBranchFilter('');
+    setBranchFilter('all');
     setStartDate('');
     setEndDate('');
   };
@@ -175,12 +174,12 @@ const DashboardPage = () => {
               
               <div className="flex items-center space-x-2">
                 <Building className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                <Select value={branchFilter} onValueChange={(value) => setBranchFilter(value as Branch | '')}>
+                <Select value={branchFilter} onValueChange={(value) => setBranchFilter(value as Branch | 'all')}>
                   <SelectTrigger className="nbs-input-focus">
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Branches</SelectItem>
+                    <SelectItem value="all">All Branches</SelectItem>
                     {branches.map((branch) => (
                       <SelectItem key={branch} value={branch}>
                         {branch}
