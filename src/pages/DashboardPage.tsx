@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Search, 
@@ -8,9 +8,10 @@ import {
   Box, 
   RefreshCw,
   ArrowUpDown, 
-  Plus 
+  Plus,
+  Loader2
 } from 'lucide-react';
-import { useTerminalStore, Branch, Terminal } from '@/store/terminalStore';
+import { Branch, Terminal } from '@/store/terminalStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -23,30 +24,51 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
+import { fetchFilteredTerminals } from '@/services/terminalService';
+import { useToast } from '@/hooks/use-toast';
 
 const DashboardPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [branchFilter, setBranchFilter] = useState<Branch | 'all'>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [terminals, setTerminals] = useState<Terminal[]>([]);
+  const [filteredTerminals, setFilteredTerminals] = useState<Terminal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   
-  const { 
-    terminals,
-    filterTerminals 
-  } = useTerminalStore();
+  useEffect(() => {
+    // Fetch terminals when the component mounts
+    loadTerminals();
+  }, []);
+
+  const loadTerminals = async () => {
+    try {
+      setIsLoading(true);
+      const filters = {
+        branch: branchFilter !== 'all' ? branchFilter as Branch : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        searchTerm
+      };
+      const data = await fetchFilteredTerminals(filters);
+      setTerminals(data);
+      setFilteredTerminals(data);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Failed to fetch terminals:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load terminals. Please try again.",
+      });
+      setIsLoading(false);
+    }
+  };
   
-  const dispatchedTerminals = terminals.filter(terminal => !terminal.isReturned);
-  const returnedTerminals = terminals.filter(terminal => terminal.isReturned);
-  
-  const filteredTerminals = filterTerminals({
-    branch: branchFilter !== 'all' ? branchFilter as Branch : undefined,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
-    searchTerm
-  });
-  
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    await loadTerminals();
   };
   
   const handleClearFilters = () => {
@@ -54,6 +76,7 @@ const DashboardPage = () => {
     setBranchFilter('all');
     setStartDate('');
     setEndDate('');
+    loadTerminals();
   };
   
   const branches: Branch[] = [
@@ -71,6 +94,9 @@ const DashboardPage = () => {
     'Digital Services', 
     'CIB'
   ];
+
+  const dispatchedTerminals = terminals.filter(terminal => !terminal.isReturned);
+  const returnedTerminals = terminals.filter(terminal => terminal.isReturned);
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -212,21 +238,26 @@ const DashboardPage = () => {
         </TabsList>
         
         <TabsContent value="all">
-          <TerminalTable terminals={filteredTerminals} />
+          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals} />}
         </TabsContent>
         
         <TabsContent value="dispatched">
-          <TerminalTable 
-            terminals={filteredTerminals.filter(t => !t.isReturned)} 
-          />
+          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => !t.isReturned)} />}
         </TabsContent>
         
         <TabsContent value="returned">
-          <TerminalTable 
-            terminals={filteredTerminals.filter(t => t.isReturned)} 
-          />
+          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => t.isReturned)} />}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+};
+
+const LoadingState = () => {
+  return (
+    <div className="flex items-center justify-center py-10">
+      <Loader2 className="h-8 w-8 text-nbsGreen animate-spin" />
+      <span className="ml-2 text-lg text-gray-600">Loading terminals...</span>
     </div>
   );
 };

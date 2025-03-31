@@ -9,7 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      terminals: {
+        Row: {
+          branch: string
+          dispatch_date: string
+          fedex_tracking_number: string | null
+          id: string
+          is_returned: boolean
+          line_serial_number: string
+          name: string
+          return_date: string | null
+          serial_number: string
+          terminal_id: string
+          type: string
+        }
+        Insert: {
+          branch: string
+          dispatch_date: string
+          fedex_tracking_number?: string | null
+          id?: string
+          is_returned?: boolean
+          line_serial_number: string
+          name: string
+          return_date?: string | null
+          serial_number: string
+          terminal_id: string
+          type: string
+        }
+        Update: {
+          branch?: string
+          dispatch_date?: string
+          fedex_tracking_number?: string | null
+          id?: string
+          is_returned?: boolean
+          line_serial_number?: string
+          name?: string
+          return_date?: string | null
+          serial_number?: string
+          terminal_id?: string
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

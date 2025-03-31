@@ -1,7 +1,6 @@
 
-import { useState } from 'react';
-import { useTerminalStore } from '@/store/terminalStore';
-import { Search, ArrowRight, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,44 +15,76 @@ import {
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { fetchFilteredTerminals, getTerminalById, markTerminalAsReturned } from '@/services/terminalService';
+import { Terminal } from '@/store/terminalStore';
 
 const ReturnPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [confirmReturn, setConfirmReturn] = useState(false);
+  const [dispatchedTerminals, setDispatchedTerminals] = useState<Terminal[]>([]);
+  const [filteredTerminals, setFilteredTerminals] = useState<Terminal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  const { 
-    getDispatchedTerminals,
-    getTerminalById,
-    markAsReturned
-  } = useTerminalStore();
+  useEffect(() => {
+    loadDispatchedTerminals();
+  }, []);
   
-  const dispatchedTerminals = getDispatchedTerminals();
+  const loadDispatchedTerminals = async () => {
+    try {
+      setIsLoading(true);
+      const terminals = await fetchFilteredTerminals({});
+      const dispatched = terminals.filter(t => !t.isReturned);
+      setDispatchedTerminals(dispatched);
+      setFilteredTerminals(dispatched);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error loading dispatched terminals:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load terminals. Please try again.",
+      });
+      setIsLoading(false);
+    }
+  };
   
-  const filteredTerminals = searchTerm
-    ? dispatchedTerminals.filter(
+  useEffect(() => {
+    // Filter terminals based on search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const filtered = dispatchedTerminals.filter(
         (terminal) =>
-          terminal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          terminal.terminalId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          terminal.serialNumber.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : dispatchedTerminals;
+          terminal.name.toLowerCase().includes(term) ||
+          terminal.terminalId.toLowerCase().includes(term) ||
+          terminal.serialNumber.toLowerCase().includes(term)
+      );
+      setFilteredTerminals(filtered);
+    } else {
+      setFilteredTerminals(dispatchedTerminals);
+    }
+  }, [searchTerm, dispatchedTerminals]);
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Search is already reactive
+    // Search is already reactive through the useEffect
   };
   
   const handleSelectTerminal = (id: string) => {
     setSelectedTerminal(id);
   };
   
-  const handleReturn = () => {
-    if (selectedTerminal) {
-      const terminal = getTerminalById(selectedTerminal);
-      markAsReturned(selectedTerminal);
+  const handleReturn = async () => {
+    if (!selectedTerminal) return;
+    
+    try {
+      setIsProcessing(true);
+      await markTerminalAsReturned(selectedTerminal);
+      
+      const terminal = await getTerminalById(selectedTerminal);
       
       toast({
         title: 'Terminal Returned',
@@ -68,6 +99,15 @@ const ReturnPage = () => {
       setTimeout(() => {
         navigate('/dashboard');
       }, 1500);
+    } catch (error) {
+      console.error("Error returning terminal:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to process return. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
   
@@ -106,7 +146,14 @@ const ReturnPage = () => {
             </CardContent>
           </Card>
           
-          {filteredTerminals.length > 0 ? (
+          {isLoading ? (
+            <Card className="md:col-span-3 p-8 text-center animate-fade-in">
+              <div className="flex flex-col items-center justify-center">
+                <Loader2 className="h-10 w-10 text-nbsGreen animate-spin mb-4" />
+                <p className="text-gray-500">Loading terminals...</p>
+              </div>
+            </Card>
+          ) : filteredTerminals.length > 0 ? (
             filteredTerminals.map((terminal) => (
               <Card 
                 key={terminal.id} 
@@ -191,43 +238,39 @@ const ReturnPage = () => {
             </DialogDescription>
           </DialogHeader>
           
-          {selectedTerminal && (
-            <div className="py-4">
-              <div className="grid grid-cols-2 gap-4">
-                {(() => {
-                  const terminal = getTerminalById(selectedTerminal);
-                  if (!terminal) return null;
-                  
-                  return (
-                    <>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-gray-500">Terminal Name</p>
-                        <p className="text-sm">{terminal.name}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-gray-500">Terminal ID</p>
-                        <p className="text-sm">{terminal.terminalId}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-gray-500">Branch</p>
-                        <p className="text-sm">{terminal.branch}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-gray-500">Serial Number</p>
-                        <p className="text-sm">{terminal.serialNumber}</p>
-                      </div>
-                    </>
-                  );
-                })()}
+          {selectedTerminal && (() => {
+            const terminal = filteredTerminals.find(t => t.id === selectedTerminal);
+            if (!terminal) return null;
+            
+            return (
+              <div className="py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-500">Merchant Name</p>
+                    <p className="text-sm">{terminal.name}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-500">Terminal ID</p>
+                    <p className="text-sm">{terminal.terminalId}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-500">Branch</p>
+                    <p className="text-sm">{terminal.branch}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-500">Serial Number</p>
+                    <p className="text-sm">{terminal.serialNumber}</p>
+                  </div>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-gray-500">
+                    Return Date: <span className="font-medium">{format(new Date(), 'PPP')}</span>
+                  </p>
+                </div>
               </div>
-              
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-sm text-gray-500">
-                  Return Date: <span className="font-medium">{format(new Date(), 'PPP')}</span>
-                </p>
-              </div>
-            </div>
-          )}
+            );
+          })()}
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmReturn(false)}>
@@ -236,8 +279,16 @@ const ReturnPage = () => {
             <Button 
               onClick={handleReturn}
               className="bg-nbsGreen hover:bg-nbsGreen-dark text-white"
+              disabled={isProcessing}
             >
-              Confirm Return
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Confirm Return"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

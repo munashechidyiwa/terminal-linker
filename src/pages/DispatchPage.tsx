@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, Info, PlusCircle } from 'lucide-react';
-import { useTerminalStore, Branch, TerminalType } from '@/store/terminalStore';
+import { Branch, TerminalType } from '@/store/terminalStore';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { addTerminal } from '@/services/terminalService';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -71,7 +72,6 @@ const formSchema = z.object({
 
 const DispatchPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { addTerminal } = useTerminalStore();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -104,7 +104,7 @@ const DispatchPage = () => {
         fedexTrackingNumber: formData.fedexTrackingNumber,
       };
       
-      addTerminal(terminalData);
+      await addTerminal(terminalData);
       
       toast({
         title: "Terminal Dispatched",
