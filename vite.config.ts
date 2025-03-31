@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
+  base:"/termina-linker",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
