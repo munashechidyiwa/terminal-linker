@@ -1,1 +1,37 @@
 
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # Trigger deployment only when pushing to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout the code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Set up Node.js (for installing dependencies and building the app)
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'  # Or whichever Node.js version your project uses
+
+    # Install dependencies
+    - name: Install dependencies
+      run: npm install
+
+    # Build the project
+    - name: Build the project
+      run: npm run build
+
+    # Deploy to GitHub Pages using gh-pages
+    - name: Deploy to GitHub Pages
+      run: |
+        npm install --save-dev gh-pages
+        npm run deploy
+
