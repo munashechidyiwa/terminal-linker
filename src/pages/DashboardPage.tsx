@@ -1,390 +1,310 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Search, 
-  Calendar, 
-  Building, 
-  Box, 
-  RefreshCw,
-  ArrowUpDown, 
-  Plus,
-  Loader2,
-  Trash
-} from 'lucide-react';
-import { Branch, Terminal } from '@/store/terminalStore';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { fetchFilteredTerminals, deleteTerminal } from '@/services/terminalService';
+import { Branch, Terminal } from '@/store/terminalStore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger, 
+  DialogFooter, 
+  DialogClose 
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { Trash2, Search, Calendar, Filter } from 'lucide-react';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 
-const DashboardPage = () => {
+export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [branchFilter, setBranchFilter] = useState<Branch | 'all'>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [terminals, setTerminals] = useState<Terminal[]>([]);
-  const [filteredTerminals, setFilteredTerminals] = useState<Terminal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [branch, setBranch] = useState<Branch | ''>('');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
+  const [isReturnDetailsOpen, setIsReturnDetailsOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
-  
-  useEffect(() => {
-    loadTerminals();
-  }, []);
 
-  const loadTerminals = async () => {
-    try {
-      setIsLoading(true);
-      const filters = {
-        branch: branchFilter !== 'all' ? branchFilter as Branch : undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        searchTerm
-      };
-      const data = await fetchFilteredTerminals(filters);
-      setTerminals(data);
-      setFilteredTerminals(data);
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Failed to fetch terminals:", error);
+  const { data: terminals = [], isLoading, error } = useQuery({
+    queryKey: ['terminals', branch, startDate, endDate, searchTerm],
+    queryFn: () => fetchFilteredTerminals({
+      branch: branch || undefined,
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+      searchTerm,
+    }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteTerminal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      toast({
+        title: "Terminal Deleted",
+        description: "The terminal has been successfully deleted",
+      });
+      setIsDeleteDialogOpen(false);
+    },
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to load terminals. Please try again.",
+        description: `Failed to delete terminal: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
-      setIsLoading(false);
+    }
+  });
+
+  const handleDeleteConfirm = () => {
+    if (selectedTerminal) {
+      deleteMutation.mutate(selectedTerminal.id);
     }
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await loadTerminals();
+  const handleDelete = (terminal: Terminal) => {
+    setSelectedTerminal(terminal);
+    setIsDeleteDialogOpen(true);
   };
 
-  const handleClearFilters = () => {
+  const handleShowReturnDetails = (terminal: Terminal) => {
+    setSelectedTerminal(terminal);
+    setIsReturnDetailsOpen(true);
+  };
+
+  // Format date for display
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    return format(new Date(dateString), 'MMM d, yyyy');
+  };
+
+  const resetFilters = () => {
+    setBranch('');
+    setStartDate(undefined);
+    setEndDate(undefined);
     setSearchTerm('');
-    setBranchFilter('all');
-    setStartDate('');
-    setEndDate('');
-    loadTerminals();
   };
 
-  const handleDeleteTerminal = async (terminalId: string) => {
-    if (window.confirm("Are you sure you want to delete this terminal?")) {
-      try {
-        await deleteTerminal(terminalId);
-        toast({
-          description: "Terminal deleted successfully",
-        });
-        loadTerminals();
-      } catch (error) {
-        console.error("Error deleting terminal:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to delete terminal. Please try again.",
-        });
-      }
-    }
-  };
-
-  const branches: Branch[] = [
-    'Masvingo Branch', 
-    'Mutare Branch', 
-    'Chiredzi Branch', 
-    'Gweru Branch', 
-    'Chinhoyi Branch', 
-    'Private Banking', 
-    'Bindura Branch', 
-    'Samora Branch', 
-    'JMN Bulawayo', 
-    'SSC Branch', 
-    'Business Banking', 
-    'Digital Services', 
-    'CIB'
-  ];
-
-  const dispatchedTerminals = terminals.filter(terminal => !terminal.isReturned);
-  const returnedTerminals = terminals.filter(terminal => terminal.isReturned);
-  
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-nbsGreen">Terminal Dashboard</h1>
-          <p className="text-gray-600">Manage and monitor all your payment terminals</p>
-        </div>
-        
-        <div className="flex gap-3">
-          <Button asChild className="bg-nbsGreen hover:bg-nbsGreen-dark">
-            <Link to="/dispatch">
-              <Plus className="mr-2 h-4 w-4" /> Dispatch Terminal
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/return">
-              <RefreshCw className="mr-2 h-4 w-4" /> Returned Terminals
-            </Link>
-          </Button>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="nbs-card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-gray-600 text-sm font-normal">Total Terminals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center">
-              <Box className="h-8 w-8 text-nbsGreen mr-3" />
-              <span className="text-3xl font-bold">{terminals.length}</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="nbs-card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-gray-600 text-sm font-normal">Dispatched Terminals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center">
-              <Box className="h-8 w-8 text-nbsLime mr-3" />
-              <span className="text-3xl font-bold">{dispatchedTerminals.length}</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="nbs-card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-gray-600 text-sm font-normal">Returned Terminals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center">
-              <RefreshCw className="h-8 w-8 text-gray-500 mr-3" />
-              <span className="text-3xl font-bold">{returnedTerminals.length}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-lg">Search & Filter Terminals</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search terminals..."
-                  className="pl-10 nbs-input-focus"
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  placeholder="Start date"
-                  className="nbs-input-focus"
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  placeholder="End date"
-                  className="nbs-input-focus"
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Building className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                <Select value={branchFilter} onValueChange={(value) => setBranchFilter(value as Branch | 'all')}>
-                  <SelectTrigger className="nbs-input-focus">
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Branches</SelectItem>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch} value={branch}>
-                        {branch}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={handleClearFilters}>
-                Clear Filters
-              </Button>
-              <Button type="submit" className="bg-nbsGreen hover:bg-nbsGreen-dark">
-                Apply Filters
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-      
-      <Tabs defaultValue="all" className="mb-8">
-        <TabsList className="mb-4">
-          <TabsTrigger value="all">All Terminals</TabsTrigger>
-          <TabsTrigger value="dispatched">Dispatched</TabsTrigger>
-          <TabsTrigger value="returned">Returned</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="all">
-          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals} onDelete={handleDeleteTerminal} />}
-        </TabsContent>
-        
-        <TabsContent value="dispatched">
-          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => !t.isReturned)} onDelete={handleDeleteTerminal} />}
-        </TabsContent>
-        
-        <TabsContent value="returned">
-          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => t.isReturned)} onDelete={handleDeleteTerminal} />}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
-
-const LoadingState = () => {
-  return (
-    <div className="flex items-center justify-center py-10">
-      <Loader2 className="h-8 w-8 text-nbsGreen animate-spin" />
-      <span className="ml-2 text-lg text-gray-600">Loading terminals...</span>
-    </div>
-  );
-};
-
-interface TerminalTableProps {
-  terminals: Terminal[];
-  onDelete: (terminalId: string) => void;
-}
-
-const TerminalTable = ({ terminals, onDelete }: TerminalTableProps) => {
-  if (terminals.length === 0) {
+  if (error) {
     return (
-      <div className="text-center py-8 bg-gray-50 rounded-lg">
-        <p className="text-gray-500">No terminals found</p>
+      <div className="container py-10">
+        <Card className="bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-500">Error loading terminals: {error instanceof Error ? error.message : 'Unknown error'}</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
-  
+
   return (
-    <div className="rounded-md border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full bg-white">
-          <thead>
-            <tr className="bg-nbsGreen text-white">
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Merchant Name
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Terminal ID
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Branch
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Type
-                </div>
-              </th>
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Serial Number
-                </div>
-              </th>
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Dispatch Date
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Status
-                </div>
-              </th>
-              <th className="py-3 px-4 text-left font-medium">
-                <div className="flex items-center">
-                  Actions
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {terminals.map((terminal, index) => (
-              <tr 
-                key={terminal.id} 
-                className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-              >
-                <td className="py-3 px-4">{terminal.name}</td>
-                <td className="py-3 px-4">{terminal.terminalId}</td>
-                <td className="py-3 px-4">{terminal.branch}</td>
-                <td className="py-3 px-4">{terminal.type}</td>
-                <td className="py-3 px-4">{terminal.serialNumber}</td>
-                <td className="py-3 px-4">
-                  {format(new Date(terminal.dispatchDate), 'MMM dd, yyyy')}
-                </td>
-                <td className="py-3 px-4">
-                  {terminal.isReturned ? (
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800">
-                      Returned
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
-                      Dispatched
-                    </span>
-                  )}
-                </td>
-                <td className="py-3 px-4">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => onDelete(terminal.id)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash className="h-4 w-4" />
+    <div className="container py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Terminal Dashboard</CardTitle>
+          <CardDescription>Manage and monitor POS terminals</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search by name, terminal ID, or serial number"
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="w-full md:w-64">
+              <Select value={branch} onValueChange={(value: Branch | '') => setBranch(value)}>
+                <SelectTrigger>
+                  <div className="flex items-center">
+                    <Filter className="mr-2 h-4 w-4" />
+                    {branch || 'Filter by branch'}
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Branches</SelectItem>
+                  <SelectItem value="Masvingo Branch">Masvingo Branch</SelectItem>
+                  <SelectItem value="Mutare Branch">Mutare Branch</SelectItem>
+                  <SelectItem value="Chiredzi Branch">Chiredzi Branch</SelectItem>
+                  <SelectItem value="Gweru Branch">Gweru Branch</SelectItem>
+                  <SelectItem value="Chinhoyi Branch">Chinhoyi Branch</SelectItem>
+                  <SelectItem value="Private Banking">Private Banking</SelectItem>
+                  <SelectItem value="Bindura Branch">Bindura Branch</SelectItem>
+                  <SelectItem value="Samora Branch">Samora Branch</SelectItem>
+                  <SelectItem value="JMN Bulawayo">JMN Bulawayo</SelectItem>
+                  <SelectItem value="SSC Branch">SSC Branch</SelectItem>
+                  <SelectItem value="Business Banking">Business Banking</SelectItem>
+                  <SelectItem value="Digital Services">Digital Services</SelectItem>
+                  <SelectItem value="CIB">CIB</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-auto">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full md:w-auto">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {startDate && endDate 
+                      ? `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
+                      : startDate
+                      ? `Since ${format(startDate, 'MMM d')}`
+                      : endDate
+                      ? `Until ${format(endDate, 'MMM d')}`
+                      : 'Date Range'
+                    }
                   </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <div className="p-3">
+                    <h4 className="mb-2 font-medium">Start Date</h4>
+                    <CalendarComponent
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                    <h4 className="mt-4 mb-2 font-medium">End Date</h4>
+                    <CalendarComponent
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="w-full md:w-auto">
+              <Button variant="outline" onClick={resetFilters} className="w-full md:w-auto">
+                Reset Filters
+              </Button>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Merchant Name</TableHead>
+                  <TableHead>Terminal ID</TableHead>
+                  <TableHead>Serial Number</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Dispatch Date</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10">
+                      Loading terminals...
+                    </TableCell>
+                  </TableRow>
+                ) : terminals.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10">
+                      No terminals found. Try adjusting your filters or add new terminals.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  terminals.map((terminal) => (
+                    <TableRow key={terminal.id}>
+                      <TableCell>
+                        {terminal.isReturned ? (
+                          <Badge 
+                            variant="outline" 
+                            className="bg-amber-100 text-amber-800 hover:bg-amber-100 cursor-pointer"
+                            onClick={() => handleShowReturnDetails(terminal)}
+                          >
+                            Returned
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-green-100 text-green-800">Active</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{terminal.name}</TableCell>
+                      <TableCell>{terminal.terminalId}</TableCell>
+                      <TableCell>{terminal.serialNumber}</TableCell>
+                      <TableCell>{terminal.type}</TableCell>
+                      <TableCell>{terminal.branch}</TableCell>
+                      <TableCell>{formatDate(terminal.dispatchDate)}</TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDelete(terminal)}
+                          className="h-8 w-8 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Return Details Dialog */}
+      <Dialog open={isReturnDetailsOpen} onOpenChange={setIsReturnDetailsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return Details</DialogTitle>
+            <DialogDescription>
+              Terminal returned on {formatDate(selectedTerminal?.returnDate)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <h4 className="text-sm font-medium">Terminal</h4>
+              <p>{selectedTerminal?.name} ({selectedTerminal?.terminalId})</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium">Return Reason</h4>
+              <p className="text-sm text-gray-700">{selectedTerminal?.returnReason || 'No reason provided'}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReturnDetailsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the terminal {selectedTerminal?.name} ({selectedTerminal?.terminalId})? 
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
-
-export default DashboardPage;
+}

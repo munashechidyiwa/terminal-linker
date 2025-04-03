@@ -1,207 +1,168 @@
+
 import { useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, Info, PlusCircle, Upload } from 'lucide-react';
-import { Branch, Terminal, TerminalType } from '@/store/terminalStore';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Form, 
-  FormControl, 
-  FormDescription, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { addTerminal, addTerminals } from '@/services/terminalService';
+import { Terminal, TerminalType, Branch } from '@/store/terminalStore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { CalendarIcon, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExcelUploader } from '@/components/ExcelUploader';
-import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Merchant name must be at least 2 characters.",
-  }).max(25, {
-    message: "Merchant name cannot exceed 25 characters."
+  name: z.string()
+    .min(1, { message: 'Merchant name is required' })
+    .max(25, { message: 'Merchant name must be 25 characters or less' }),
+  terminalId: z.string()
+    .min(1, { message: 'Terminal ID is required' })
+    .max(8, { message: 'Terminal ID must be 8 characters or less' }),
+  serialNumber: z.string()
+    .min(1, { message: 'Serial number is required' })
+    .max(11, { message: 'Serial number must be 11 characters or less' }),
+  lineSerialNumber: z.string()
+    .min(1, { message: 'Line serial number is required' })
+    .min(16, { message: 'Line serial number must be at least 16 characters' })
+    .max(18, { message: 'Line serial number must be 18 characters or less' }),
+  type: z.enum(['iPOS', 'Aisini A75', 'Verifone X990', 'PAX S20'], { 
+    required_error: 'Terminal type is required' 
   }),
-  terminalId: z.string().min(5, {
-    message: "Terminal ID must be at least 5 characters.",
-  }).max(8, {
-    message: "Terminal ID cannot exceed 8 characters."
-  }),
-  serialNumber: z.string().min(5, {
-    message: "Serial number must be at least 5 characters.",
-  }).max(11, {
-    message: "Serial number cannot exceed 11 characters."
-  }),
-  lineSerialNumber: z.string().min(5, {
-    message: "Line Serial number must be at least 5 characters.",
-  }).min(16, {
-    message: "Line Serial number must be at least 16 characters."
-  }).max(18, {
-    message: "Line Serial number cannot exceed 18 characters."
-  }),
-  type: z.enum(['iPOS', 'Aisini A75', 'Verifone X990', 'PAX S20'], {
-    required_error: "Please select a terminal type.",
-  }),
-  branch: z.enum([
-    'Masvingo Branch', 
-    'Mutare Branch', 
-    'Chiredzi Branch', 
-    'Gweru Branch', 
-    'Chinhoyi Branch', 
-    'Private Banking', 
-    'Bindura Branch', 
-    'Samora Branch', 
-    'JMN Bulawayo', 
-    'SSC Branch', 
-    'Business Banking', 
-    'Digital Services', 
-    'CIB'
-  ], {
-    required_error: "Please select a branch.",
-  }),
-  dispatchDate: z.date({
-    required_error: "Please select a dispatch date.",
-  }),
+  branch: z.string({ required_error: 'Branch is required' }),
+  dispatchDate: z.date({ required_error: 'Dispatch date is required' }),
   fedexTrackingNumber: z.string().optional(),
 });
 
-const DispatchPage = () => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isBatchUploading, setIsBatchUploading] = useState(false);
-  const [excelData, setExcelData] = useState<Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">[]>([]);
+type FormValues = z.infer<typeof formSchema>;
+
+export default function DispatchPage() {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("single");
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [batchData, setBatchData] = useState<Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">[]>([]);
   
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      terminalId: "",
-      serialNumber: "",
-      lineSerialNumber: "",
-      type: undefined,
-      branch: undefined,
+      name: '',
+      terminalId: '',
+      serialNumber: '',
+      lineSerialNumber: '',
       dispatchDate: new Date(),
-      fedexTrackingNumber: "",
+      fedexTrackingNumber: '',
     },
   });
   
-  const onSubmit = async (formData: z.infer<typeof formSchema>) => {
-    setIsSubmitting(true);
-    try {
-      // Make sure all required fields are present
-      const terminalData = {
-        name: formData.name,
-        terminalId: formData.terminalId,
-        serialNumber: formData.serialNumber,
-        lineSerialNumber: formData.lineSerialNumber,
-        type: formData.type as TerminalType,
-        branch: formData.branch as Branch,
-        dispatchDate: formData.dispatchDate.toISOString(),
-        fedexTrackingNumber: formData.fedexTrackingNumber,
-      };
-      
-      await addTerminal(terminalData);
-      
-      toast({
-        title: "Terminal Dispatched",
-        description: `Terminal ${formData.name} has been successfully dispatched.`,
+  const singleMutation = useMutation({
+    mutationFn: (values: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">) => {
+      return addTerminal(values);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      form.reset({
+        name: '',
+        terminalId: '',
+        serialNumber: '',
+        lineSerialNumber: '',
+        dispatchDate: new Date(),
+        fedexTrackingNumber: '',
       });
-      
-      navigate('/dashboard');
-    } catch (error) {
-      console.error("Error submitting form:", error);
       toast({
-        variant: "destructive",
-        title: "Failed to dispatch terminal",
-        description: "An error occurred while dispatching the terminal. Please try again.",
+        title: 'Terminal Added',
+        description: 'The terminal has been added successfully.',
       });
-    } finally {
-      setIsSubmitting(false);
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Failed to add terminal: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    },
+  });
+  
+  const batchMutation = useMutation({
+    mutationFn: (data: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">[]) => {
+      return addTerminals(data);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      setBatchData([]);
+      setIsBatchProcessing(false);
+      toast({
+        title: 'Terminals Added',
+        description: `Successfully added ${data.length} terminals.`,
+      });
+    },
+    onError: (error) => {
+      setIsBatchProcessing(false);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Failed to add terminals: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
     }
+  });
+  
+  const onSubmit = (values: FormValues) => {
+    const terminalData: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason"> = {
+      ...values,
+      dispatchDate: values.dispatchDate.toISOString(),
+    };
+    singleMutation.mutate(terminalData);
   };
-
-  const handleExcelDataExtracted = (data: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">[]) => {
-    setExcelData(data);
+  
+  const handleBatchUpload = (data: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">[]) => {
+    setBatchData(data);
   };
-
-  const handleBatchUpload = async () => {
-    if (excelData.length === 0) {
+  
+  const processBatchUpload = () => {
+    if (batchData.length === 0) {
       toast({
-        variant: "destructive",
-        title: "No Data",
-        description: "Please upload an Excel file first",
+        variant: 'destructive',
+        title: 'No Data',
+        description: 'Please upload an Excel file with terminal data first.',
       });
       return;
     }
-
-    setIsBatchUploading(true);
-    try {
-      await addTerminals(excelData);
-      toast({
-        title: "Batch Upload Complete",
-        description: `Successfully added ${excelData.length} terminal(s).`,
-      });
-      navigate('/dashboard');
-    } catch (error) {
-      console.error("Error in batch upload:", error);
-      toast({
-        variant: "destructive",
-        title: "Upload Failed",
-        description: "An error occurred during batch upload. Please try again.",
-      });
-    } finally {
-      setIsBatchUploading(false);
-    }
+    
+    setIsBatchProcessing(true);
+    batchMutation.mutate(batchData);
   };
-  
+
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-nbsGreen">Dispatched Terminals</h1>
-          <p className="text-gray-600">Dispatch a new POS terminal to a business unit</p>
-        </div>
-        <Button asChild variant="outline">
-          <a href="/dashboard">
-            Back to Dashboard
-          </a>
-        </Button>
-      </div>
-
-      <Tabs defaultValue="single">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="single">Single Terminal</TabsTrigger>
-          <TabsTrigger value="batch">Batch Upload</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="single">
-          <Card>
-            <CardHeader>
-              <CardTitle>Terminal Information</CardTitle>
-            </CardHeader>
+    <div className="container max-w-4xl py-12">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Dispatched Terminals</CardTitle>
+          <CardDescription className="text-center">
+            Dispatch POS Terminals to different Business Units
+          </CardDescription>
+        </CardHeader>
+        
+        <Tabs defaultValue="single" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="px-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="single">Single Entry</TabsTrigger>
+              <TabsTrigger value="batch">Batch Upload</TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <TabsContent value="single">
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="name"
@@ -209,13 +170,9 @@ const DispatchPage = () => {
                         <FormItem>
                           <FormLabel>Merchant Name (25)</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., OK Supermarket" 
-                              {...field} 
-                              className="nbs-input-focus"
-                              maxLength={25}
-                            />
+                            <Input placeholder="e.g., OK Supermarket" {...field} maxLength={25} />
                           </FormControl>
+                          <FormDescription>e.g., OK Supermarket</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -228,20 +185,14 @@ const DispatchPage = () => {
                         <FormItem>
                           <FormLabel>Terminal ID (8)</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., NBSP0998" 
-                              {...field} 
-                              className="nbs-input-focus"
-                              maxLength={8}
-                            />
+                            <Input placeholder="e.g., NBSP0998" {...field} maxLength={8} />
                           </FormControl>
+                          <FormDescription>e.g., NBSP0998</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
                     <FormField
                       control={form.control}
                       name="serialNumber"
@@ -249,18 +200,14 @@ const DispatchPage = () => {
                         <FormItem>
                           <FormLabel>Serial Number (11)</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., 00052023987" 
-                              {...field} 
-                              className="nbs-input-focus"
-                              maxLength={11}
-                            />
+                            <Input placeholder="e.g., 00052023987" {...field} maxLength={11} />
                           </FormControl>
+                          <FormDescription>e.g., 00052023987</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
+                    
                     <FormField
                       control={form.control}
                       name="lineSerialNumber"
@@ -268,29 +215,23 @@ const DispatchPage = () => {
                         <FormItem>
                           <FormLabel>Line Serial Number (16-18)</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., 89263011909116734" 
-                              {...field} 
-                              className="nbs-input-focus"
-                              maxLength={18}
-                            />
+                            <Input placeholder="e.g., 89263011909116734" {...field} maxLength={18} />
                           </FormControl>
+                          <FormDescription>e.g., 89263011909116734</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
                     <FormField
                       control={form.control}
                       name="type"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Terminal Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value as string}>
                             <FormControl>
-                              <SelectTrigger className="nbs-input-focus">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Select a type" />
                               </SelectTrigger>
                             </FormControl>
@@ -314,7 +255,7 @@ const DispatchPage = () => {
                           <FormLabel>Branch</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="nbs-input-focus">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Select a branch" />
                               </SelectTrigger>
                             </FormControl>
@@ -338,9 +279,7 @@ const DispatchPage = () => {
                         </FormItem>
                       )}
                     />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
                     <FormField
                       control={form.control}
                       name="dispatchDate"
@@ -353,7 +292,7 @@ const DispatchPage = () => {
                                 <Button
                                   variant={"outline"}
                                   className={cn(
-                                    "w-[240px] pl-3 text-left font-normal nbs-input-focus",
+                                    "w-full pl-3 text-left font-normal",
                                     !field.value && "text-muted-foreground"
                                   )}
                                 >
@@ -371,9 +310,7 @@ const DispatchPage = () => {
                                 mode="single"
                                 selected={field.value}
                                 onSelect={field.onChange}
-                                disabled={(date) =>
-                                  date > new Date()
-                                }
+                                disabled={(date) => date > new Date()}
                                 initialFocus
                               />
                             </PopoverContent>
@@ -388,27 +325,9 @@ const DispatchPage = () => {
                       name="fedexTrackingNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>
-                            FedEx Tracking Number
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="ghost" className="ml-2 h-4 w-4 p-0">
-                                  <Info className="h-4 w-4 text-gray-500" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-80">
-                                <p className="text-sm text-muted-foreground">
-                                  Optional. Add the FedEx tracking number if available.
-                                </p>
-                              </PopoverContent>
-                            </Popover>
-                          </FormLabel>
+                          <FormLabel>FedEx Tracking Number (Optional)</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="e.g., 123456789012" 
-                              {...field} 
-                              className="nbs-input-focus"
-                            />
+                            <Input placeholder="Enter tracking number" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -416,106 +335,68 @@ const DispatchPage = () => {
                     />
                   </div>
                   
-                  <Button 
-                    type="submit" 
-                    className="bg-nbsGreen hover:bg-nbsGreen-dark w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <PlusCircle className="mr-2 h-4 w-4 animate-spin" />
-                        Dispatching...
-                      </>
-                    ) : (
-                      <>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Dispatch Terminal
-                      </>
-                    )}
+                  <Button type="submit" className="w-full">
+                    <Plus className="mr-2 h-4 w-4" /> Add Terminal
                   </Button>
                 </form>
               </Form>
             </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="batch">
-          <Card>
-            <CardHeader>
-              <CardTitle>Batch Terminal Upload</CardTitle>
-            </CardHeader>
+          </TabsContent>
+          
+          <TabsContent value="batch">
             <CardContent className="space-y-6">
-              <ExcelUploader 
-                onDataExtracted={handleExcelDataExtracted}
-                isProcessing={isBatchUploading}
-              />
+              <div>
+                <h3 className="text-lg font-medium mb-2">Upload Excel File</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Upload an Excel file with terminal data to add multiple terminals at once. 
+                  The file should have the following columns: name, terminal_id, serial_number, 
+                  line_serial_number, type, branch, dispatch_date, and fedex_tracking_number (optional).
+                </p>
+                
+                <ExcelUploader 
+                  onDataExtracted={handleBatchUpload}
+                  isProcessing={isBatchProcessing}
+                />
+              </div>
               
-              {excelData.length > 0 && (
-                <div className="space-y-4">
-                  <Separator />
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-medium">{excelData.length} Terminal{excelData.length !== 1 ? 's' : ''} Ready to Upload</h3>
-                      <p className="text-sm text-gray-500">Review the data before uploading</p>
+              {batchData.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium mb-2">Preview</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    {batchData.length} terminals ready to be processed.
+                  </p>
+                  
+                  <div className="border rounded-md p-4 bg-gray-50">
+                    <div className="text-sm">
+                      <strong>First Terminal:</strong> {batchData[0].name} ({batchData[0].terminalId})
                     </div>
-                    <Button 
-                      className="bg-nbsGreen hover:bg-nbsGreen-dark"
-                      onClick={handleBatchUpload}
-                      disabled={isBatchUploading}
-                    >
-                      {isBatchUploading ? (
-                        <>
-                          <Upload className="mr-2 h-4 w-4 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload Terminals
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="border rounded-md overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terminal ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial Number</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {excelData.slice(0, 5).map((terminal, index) => (
-                            <tr key={index}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{terminal.name}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{terminal.terminalId}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{terminal.serialNumber}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{terminal.type}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{terminal.branch}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {excelData.length > 5 && (
-                      <div className="px-6 py-3 bg-gray-50 text-center text-sm text-gray-500">
-                        ... and {excelData.length - 5} more terminal{excelData.length - 5 !== 1 ? 's' : ''}
+                    {batchData.length > 1 && (
+                      <div className="text-sm mt-1">
+                        <strong>Last Terminal:</strong> {batchData[batchData.length-1].name} ({batchData[batchData.length-1].terminalId})
                       </div>
                     )}
+                    <div className="text-sm mt-2">
+                      <strong>Terminal Types:</strong> {[...new Set(batchData.map(t => t.type))].join(', ')}
+                    </div>
+                    <div className="text-sm mt-1">
+                      <strong>Branches:</strong> {[...new Set(batchData.map(t => t.branch))].join(', ')}
+                    </div>
                   </div>
                 </div>
               )}
             </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            <CardFooter>
+              <Button 
+                onClick={processBatchUpload} 
+                disabled={batchData.length === 0 || isBatchProcessing}
+                className="w-full"
+              >
+                {isBatchProcessing ? 'Processing...' : `Process ${batchData.length} Terminals`}
+              </Button>
+            </CardFooter>
+          </TabsContent>
+        </Tabs>
+      </Card>
     </div>
   );
-};
-
-export default DispatchPage;
+}

@@ -19,6 +19,7 @@ export type Database = {
           line_serial_number: string
           name: string
           return_date: string | null
+          return_reason: string | null
           serial_number: string
           terminal_id: string
           type: string
@@ -32,6 +33,7 @@ export type Database = {
           line_serial_number: string
           name: string
           return_date?: string | null
+          return_reason?: string | null
           serial_number: string
           terminal_id: string
           type: string
@@ -45,6 +47,7 @@ export type Database = {
           line_serial_number?: string
           name?: string
           return_date?: string | null
+          return_reason?: string | null
           serial_number?: string
           terminal_id?: string
           type?: string
