@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { fetchFilteredTerminals, getTerminalById, markTerminalAsReturned, deleteTerminal } from '@/services/terminalService';
 import { Terminal } from '@/store/terminalStore';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 const ReturnPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +29,7 @@ const ReturnPage = () => {
   const [filteredTerminals, setFilteredTerminals] = useState<Terminal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -81,9 +84,18 @@ const ReturnPage = () => {
   const handleReturn = async () => {
     if (!selectedTerminal) return;
     
+    if (!returnReason.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Return Reason Required",
+        description: "Please provide a reason for returning this terminal.",
+      });
+      return;
+    }
+    
     try {
       setIsProcessing(true);
-      await markTerminalAsReturned(selectedTerminal);
+      await markTerminalAsReturned(selectedTerminal, returnReason.trim());
       
       const terminal = await getTerminalById(selectedTerminal);
       
@@ -95,6 +107,7 @@ const ReturnPage = () => {
       setConfirmReturn(false);
       setSelectedTerminal(null);
       setSearchTerm('');
+      setReturnReason('');
       
       // Redirect to dashboard after a short delay
       setTimeout(() => {
@@ -277,7 +290,7 @@ const ReturnPage = () => {
           <DialogHeader>
             <DialogTitle>Confirm Terminal Return</DialogTitle>
             <DialogDescription>
-              Are you sure you want to mark this terminal as returned?
+              Please provide the reason for returning this terminal.
             </DialogDescription>
           </DialogHeader>
           
@@ -306,7 +319,19 @@ const ReturnPage = () => {
                   </div>
                 </div>
                 
-                <div className="mt-4 pt-4 border-t">
+                <div className="mt-4 pt-4 border-t space-y-4">
+                  <div>
+                    <Label htmlFor="returnReason" className="text-sm font-medium">Return Reason</Label>
+                    <Textarea 
+                      id="returnReason" 
+                      placeholder="Please explain why this terminal is being returned..."
+                      value={returnReason}
+                      onChange={(e) => setReturnReason(e.target.value)}
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </div>
+
                   <p className="text-sm text-gray-500">
                     Return Date: <span className="font-medium">{format(new Date(), 'PPP')}</span>
                   </p>
@@ -322,7 +347,7 @@ const ReturnPage = () => {
             <Button 
               onClick={handleReturn}
               className="bg-nbsGreen hover:bg-nbsGreen-dark text-white"
-              disabled={isProcessing}
+              disabled={isProcessing || !returnReason.trim()}
             >
               {isProcessing ? (
                 <>

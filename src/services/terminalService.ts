@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Branch, Terminal, TerminalType } from "@/store/terminalStore";
 
@@ -13,6 +14,7 @@ export interface SupabaseTerminal {
   fedex_tracking_number?: string;
   is_returned: boolean;
   return_date?: string;
+  return_reason?: string;
 }
 
 // Convert from Supabase format to our app format
@@ -29,6 +31,7 @@ export const mapToAppTerminal = (terminal: SupabaseTerminal): Terminal => {
     fedexTrackingNumber: terminal.fedex_tracking_number,
     isReturned: terminal.is_returned,
     returnDate: terminal.return_date,
+    returnReason: terminal.return_reason,
   };
 };
 
@@ -43,6 +46,8 @@ export const mapToSupabaseTerminal = (terminal: Omit<Terminal, "id" | "isReturne
     line_serial_number: terminal.lineSerialNumber,
     dispatch_date: terminal.dispatchDate,
     fedex_tracking_number: terminal.fedexTrackingNumber,
+    return_date: terminal.returnDate,
+    return_reason: terminal.returnReason,
   };
 };
 
@@ -78,13 +83,31 @@ export const addTerminal = async (terminalData: Omit<Terminal, "id" | "isReturne
   return mapToAppTerminal(data as SupabaseTerminal);
 };
 
+// Add multiple terminals to Supabase
+export const addTerminals = async (terminalsData: Omit<Terminal, "id" | "isReturned">[]): Promise<Terminal[]> => {
+  const supabaseTerminals = terminalsData.map(mapToSupabaseTerminal);
+  
+  const { data, error } = await supabase
+    .from('terminals')
+    .insert(supabaseTerminals)
+    .select();
+
+  if (error) {
+    console.error('Error adding terminals:', error);
+    throw error;
+  }
+
+  return (data as SupabaseTerminal[]).map(mapToAppTerminal);
+};
+
 // Mark a terminal as returned in Supabase
-export const markTerminalAsReturned = async (id: string): Promise<void> => {
+export const markTerminalAsReturned = async (id: string, returnReason: string): Promise<void> => {
   const { error } = await supabase
     .from('terminals')
     .update({ 
       is_returned: true, 
-      return_date: new Date().toISOString() 
+      return_date: new Date().toISOString(),
+      return_reason: returnReason
     })
     .eq('id', id);
 

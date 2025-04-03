@@ -28,4 +28,5 @@ export interface Terminal {
   fedexTrackingNumber?: string;
   isReturned: boolean;
   returnDate?: string;
+  returnReason?: string;
 }
