@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Branch, Terminal, TerminalType } from "@/store/terminalStore";
 
@@ -149,4 +148,19 @@ export const getTerminalById = async (id: string): Promise<Terminal | null> => {
   }
 
   return mapToAppTerminal(data as SupabaseTerminal);
+};
+
+// Add this new function if it doesn't exist in the file
+export const deleteTerminal = async (terminalId: string) => {
+  try {
+    // Assuming you have a way to delete terminals from your data source
+    // This could be an API call or local storage manipulation
+    const terminals = JSON.parse(localStorage.getItem('terminals') || '[]');
+    const updatedTerminals = terminals.filter((terminal) => terminal.id !== terminalId);
+    localStorage.setItem('terminals', JSON.stringify(updatedTerminals));
+    return true;
+  } catch (error) {
+    console.error("Error deleting terminal:", error);
+    throw error;
+  }
 };

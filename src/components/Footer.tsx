@@ -9,7 +9,7 @@ export function Footer() {
           <div>
             <h3 className="text-nbsLime font-semibold text-lg mb-4">NBS Bank</h3>
             <p className="text-white/80 text-sm">
-              National Building Society - Your trusted financial partner.
+              National Building Society - Build, Bank & Go Beyond
             </p>
           </div>
           
@@ -33,7 +33,7 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/return" className="text-white/80 hover:text-white text-sm transition-colors">
-                  Return Terminal
+                  Returned Terminal
                 </Link>
               </li>
             </ul>
@@ -45,10 +45,10 @@ export function Footer() {
               NBS Bank Headquarters
             </p>
             <p className="text-white/80 text-sm mb-2">
-              1234 Banking Street
+              SSC Building 14th Floor
             </p>
             <p className="text-white/80 text-sm">
-              contact@nbsbank.com
+              alternativechannels@nbs.co.zw
             </p>
           </div>
         </div>

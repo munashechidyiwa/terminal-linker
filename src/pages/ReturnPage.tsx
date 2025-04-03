@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Search, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Search, ArrowRight, Check, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,13 +15,14 @@ import {
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { fetchFilteredTerminals, getTerminalById, markTerminalAsReturned } from '@/services/terminalService';
+import { fetchFilteredTerminals, getTerminalById, markTerminalAsReturned, deleteTerminal } from '@/services/terminalService';
 import { Terminal } from '@/store/terminalStore';
 
 const ReturnPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTerminal, setSelectedTerminal] = useState<string | null>(null);
   const [confirmReturn, setConfirmReturn] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [dispatchedTerminals, setDispatchedTerminals] = useState<Terminal[]>([]);
   const [filteredTerminals, setFilteredTerminals] = useState<Terminal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,13 +111,45 @@ const ReturnPage = () => {
       setIsProcessing(false);
     }
   };
+
+  const handleDeleteConfirmation = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the card click from selecting the terminal
+    setConfirmDelete(id);
+  };
+
+  const handleDeleteTerminal = async () => {
+    if (!confirmDelete) return;
+    
+    try {
+      setIsProcessing(true);
+      await deleteTerminal(confirmDelete);
+      
+      toast({
+        title: 'Terminal Deleted',
+        description: 'Terminal has been successfully deleted',
+      });
+      
+      // Refresh the terminals list
+      loadDispatchedTerminals();
+      setConfirmDelete(null);
+    } catch (error) {
+      console.error("Error deleting terminal:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete terminal. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
   
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-nbsGreen">Return Terminal</h1>
-          <p className="text-gray-600">Process a terminal return</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-nbsGreen">Returned Terminals</h1>
+          <p className="text-gray-600">Process a terminal returned</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -170,11 +203,21 @@ const ReturnPage = () => {
                       <h3 className="font-semibold text-lg">{terminal.name}</h3>
                       <p className="text-sm text-gray-500">{terminal.terminalId}</p>
                     </div>
-                    {selectedTerminal === terminal.id && (
-                      <div className="bg-nbsGreen rounded-full p-1">
-                        <Check className="h-4 w-4 text-white" />
-                      </div>
-                    )}
+                    <div className="flex items-center">
+                      {selectedTerminal === terminal.id && (
+                        <div className="bg-nbsGreen rounded-full p-1 mr-2">
+                          <Check className="h-4 w-4 text-white" />
+                        </div>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
+                        onClick={(e) => handleDeleteConfirmation(terminal.id, e)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="space-y-2 text-sm">
@@ -228,7 +271,7 @@ const ReturnPage = () => {
         )}
       </div>
       
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog for Return */}
       <Dialog open={confirmReturn} onOpenChange={setConfirmReturn}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -288,6 +331,38 @@ const ReturnPage = () => {
                 </>
               ) : (
                 "Confirm Return"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!confirmDelete} onOpenChange={(isOpen) => !isOpen && setConfirmDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Terminal</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this terminal? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteTerminal}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Terminal"
               )}
             </Button>
           </DialogFooter>

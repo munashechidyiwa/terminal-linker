@@ -15,7 +15,7 @@ export function NavBar() {
     { path: '/', label: 'Home' },
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/dispatch', label: 'Dispatch Terminal' },
-    { path: '/return', label: 'Return Terminal' },
+    { path: '/return', label: 'Returned Terminal' },
   ];
   
   return (

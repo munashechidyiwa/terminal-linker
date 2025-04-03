@@ -12,10 +12,10 @@ const HomePage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6 animate-fade-in">
             <h1 className="text-4xl md:text-5xl font-bold text-nbsGreen">
-              NBS Bank Terminal Management System
+              Merchant Services Terminal Management System
             </h1>
             <p className="text-lg text-gray-600">
-              Efficiently manage the dispatch and return of payment terminals with our streamlined system.
+              Efficiently manage the dispatched terminals to different business units as well as recalled terminals.
             </p>
             <Button asChild size="lg" className="bg-nbsGreen hover:bg-nbsGreen-dark text-white">
               <Link to="/dashboard">
@@ -33,7 +33,7 @@ const HomePage = () => {
             />
             <div className="text-center text-gray-800">
               <h3 className="text-xl font-semibold mb-2">National Building Society</h3>
-              <p className="text-sm text-gray-600">Your trusted financial partner</p>
+              <p className="text-sm text-gray-600">Build, Bank & Go Beyond</p>
             </div>
           </div>
         </div>
@@ -48,14 +48,14 @@ const HomePage = () => {
           <Card className="nbs-card-hover">
             <CardHeader>
               <Box className="h-10 w-10 text-nbsGreen mb-2" />
-              <CardTitle>Terminal Dispatch</CardTitle>
+              <CardTitle>Dispatched Terminals</CardTitle>
               <CardDescription>
-                Efficiently dispatch terminals to branches
+                Dispatch POS Terminals to different Business Units
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 mb-4">
-                Record and track all terminal dispatch details with our intuitive form system.
+                Capture and update records of all POS terminals dispatched to business units and merchant details.
               </p>
               <Button variant="outline" asChild className="w-full">
                 <Link to="/dispatch">Dispatch Terminal</Link>
@@ -68,12 +68,12 @@ const HomePage = () => {
               <BarChart3 className="h-10 w-10 text-nbsGreen mb-2" />
               <CardTitle>Terminal Dashboard</CardTitle>
               <CardDescription>
-                Track and manage all terminals
+                Track and manage all POS terminals
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 mb-4">
-                View, search, and filter your terminal inventory with our comprehensive dashboard.
+                View, search, and filter POS terminal inventory on the comprehensive dashboard.
               </p>
               <Button variant="outline" asChild className="w-full">
                 <Link to="/dashboard">View Dashboard</Link>
@@ -84,9 +84,9 @@ const HomePage = () => {
           <Card className="nbs-card-hover">
             <CardHeader>
               <RefreshCw className="h-10 w-10 text-nbsGreen mb-2" />
-              <CardTitle>Terminal Return</CardTitle>
+              <CardTitle>Returned Terminals</CardTitle>
               <CardDescription>
-                Process terminal returns easily
+                Process returned terminal easily
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -108,7 +108,7 @@ const HomePage = () => {
             Ready to simplify terminal management?
           </h2>
           <p className="text-white/80 mb-6 max-w-2xl mx-auto">
-            Our system helps you keep track of all your terminals efficiently, reducing loss and improving accountability.
+            This system helps you keep track of all your POS terminals efficiently, reducing loss and improving accountability.
           </p>
           <Button asChild size="lg" className="bg-white text-nbsGreen hover:bg-nbsLime hover:text-nbsGreen-dark">
             <Link to="/dashboard">

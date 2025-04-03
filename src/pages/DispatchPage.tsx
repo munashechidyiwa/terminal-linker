@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -34,15 +35,25 @@ import { addTerminal } from '@/services/terminalService';
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Merchant name must be at least 2 characters.",
+  }).max(25, {
+    message: "Merchant name cannot exceed 25 characters."
   }),
   terminalId: z.string().min(5, {
     message: "Terminal ID must be at least 5 characters.",
+  }).max(8, {
+    message: "Terminal ID cannot exceed 8 characters."
   }),
   serialNumber: z.string().min(5, {
     message: "Serial number must be at least 5 characters.",
+  }).max(11, {
+    message: "Serial number cannot exceed 11 characters."
   }),
-  lineSerialNumber:  z.string().min(5, {
+  lineSerialNumber: z.string().min(5, {
     message: "Line Serial number must be at least 5 characters.",
+  }).min(16, {
+    message: "Line Serial number must be at least 16 characters."
+  }).max(18, {
+    message: "Line Serial number cannot exceed 18 characters."
   }),
   type: z.enum(['iPOS', 'Aisini A75', 'Verifone X990', 'PAX S20'], {
     required_error: "Please select a terminal type.",
@@ -128,8 +139,8 @@ const DispatchPage = () => {
     <div className="container mx-auto py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-nbsGreen">Dispatch Terminal</h1>
-          <p className="text-gray-600">Dispatch a new payment terminal to a branch</p>
+          <h1 className="text-2xl font-bold text-nbsGreen">Dispatched Terminals</h1>
+          <p className="text-gray-600">Dispatch a new POS terminal to a business unit</p>
         </div>
         <Button asChild variant="outline">
           <a href="/dashboard">
@@ -146,18 +157,19 @@ const DispatchPage = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Merchant Name (previously Terminal Name) */}
+                {/* Merchant Name */}
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Merchant Name</FormLabel>
+                      <FormLabel>Merchant Name (25)</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="e.g., OK Supermarket" 
                           {...field} 
                           className="nbs-input-focus"
+                          maxLength={25}
                         />
                       </FormControl>
                       <FormMessage />
@@ -171,12 +183,13 @@ const DispatchPage = () => {
                   name="terminalId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Terminal ID</FormLabel>
+                      <FormLabel>Terminal ID (8)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="e.g., TID12345" 
+                          placeholder="e.g., NBSP0998" 
                           {...field} 
                           className="nbs-input-focus"
+                          maxLength={8}
                         />
                       </FormControl>
                       <FormMessage />
@@ -192,12 +205,13 @@ const DispatchPage = () => {
                   name="serialNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Serial Number</FormLabel>
+                      <FormLabel>Serial Number (11)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="e.g., SN123456789" 
+                          placeholder="e.g., 00052023987" 
                           {...field} 
                           className="nbs-input-focus"
+                          maxLength={11}
                         />
                       </FormControl>
                       <FormMessage />
@@ -211,12 +225,13 @@ const DispatchPage = () => {
                   name="lineSerialNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Line Serial Number</FormLabel>
+                      <FormLabel>Line Serial Number (16-18)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="e.g., LN123456789" 
+                          placeholder="e.g., 89263011909116734" 
                           {...field} 
                           className="nbs-input-focus"
+                          maxLength={18}
                         />
                       </FormControl>
                       <FormMessage />
