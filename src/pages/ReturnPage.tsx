@@ -104,11 +104,11 @@ export default function ReturnPage() {
                       </FormControl>
                       <SelectContent>
                         {isLoading ? (
-                          <SelectItem value="loading" disabled>
+                          <SelectItem value="loading-terminals">
                             Loading terminals...
                           </SelectItem>
                         ) : activeTerminals.length === 0 ? (
-                          <SelectItem value="none" disabled>
+                          <SelectItem value="no-active-terminals">
                             No active terminals to return
                           </SelectItem>
                         ) : (

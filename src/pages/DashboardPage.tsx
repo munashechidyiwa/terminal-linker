@@ -135,7 +135,7 @@ export default function DashboardPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Branches</SelectItem>
+                  <SelectItem value="all-branches">All Branches</SelectItem>
                   <SelectItem value="Masvingo Branch">Masvingo Branch</SelectItem>
                   <SelectItem value="Mutare Branch">Mutare Branch</SelectItem>
                   <SelectItem value="Chiredzi Branch">Chiredzi Branch</SelectItem>
