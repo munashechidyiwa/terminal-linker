@@ -24,6 +24,7 @@ import { Trash2, Search, Calendar, Filter } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { DashboardStats } from '@/components/DashboardStats';
 
 export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,6 +115,9 @@ export default function DashboardPage() {
           <CardDescription>Manage and monitor POS terminals</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Add the stats component here */}
+          <DashboardStats />
+          
           <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 mb-6">
             <div className="flex-1">
               <div className="relative">
