@@ -150,17 +150,17 @@ export const getTerminalById = async (id: string): Promise<Terminal | null> => {
   return mapToAppTerminal(data as SupabaseTerminal);
 };
 
-// Add this new function if it doesn't exist in the file
+// Update this function to use Supabase instead of localStorage
 export const deleteTerminal = async (terminalId: string) => {
-  try {
-    // Assuming you have a way to delete terminals from your data source
-    // This could be an API call or local storage manipulation
-    const terminals = JSON.parse(localStorage.getItem('terminals') || '[]');
-    const updatedTerminals = terminals.filter((terminal) => terminal.id !== terminalId);
-    localStorage.setItem('terminals', JSON.stringify(updatedTerminals));
-    return true;
-  } catch (error) {
+  const { error } = await supabase
+    .from('terminals')
+    .delete()
+    .eq('id', terminalId);
+
+  if (error) {
     console.error("Error deleting terminal:", error);
     throw error;
   }
+  
+  return true;
 };

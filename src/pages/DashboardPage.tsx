@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -9,7 +8,8 @@ import {
   RefreshCw,
   ArrowUpDown, 
   Plus,
-  Loader2
+  Loader2,
+  Trash
 } from 'lucide-react';
 import { Branch, Terminal } from '@/store/terminalStore';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import { fetchFilteredTerminals } from '@/services/terminalService';
+import { fetchFilteredTerminals, deleteTerminal } from '@/services/terminalService';
 import { useToast } from '@/hooks/use-toast';
 
 const DashboardPage = () => {
@@ -38,7 +38,6 @@ const DashboardPage = () => {
   const { toast } = useToast();
   
   useEffect(() => {
-    // Fetch terminals when the component mounts
     loadTerminals();
   }, []);
 
@@ -65,12 +64,12 @@ const DashboardPage = () => {
       setIsLoading(false);
     }
   };
-  
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     await loadTerminals();
   };
-  
+
   const handleClearFilters = () => {
     setSearchTerm('');
     setBranchFilter('all');
@@ -78,7 +77,26 @@ const DashboardPage = () => {
     setEndDate('');
     loadTerminals();
   };
-  
+
+  const handleDeleteTerminal = async (terminalId: string) => {
+    if (window.confirm("Are you sure you want to delete this terminal?")) {
+      try {
+        await deleteTerminal(terminalId);
+        toast({
+          description: "Terminal deleted successfully",
+        });
+        loadTerminals();
+      } catch (error) {
+        console.error("Error deleting terminal:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to delete terminal. Please try again.",
+        });
+      }
+    }
+  };
+
   const branches: Branch[] = [
     'Masvingo Branch', 
     'Mutare Branch', 
@@ -114,13 +132,12 @@ const DashboardPage = () => {
           </Button>
           <Button asChild variant="outline">
             <Link to="/return">
-              <RefreshCw className="mr-2 h-4 w-4" /> Return Terminal
+              <RefreshCw className="mr-2 h-4 w-4" /> Returned Terminals
             </Link>
           </Button>
         </div>
       </div>
       
-      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="nbs-card-hover">
           <CardHeader className="pb-2">
@@ -159,7 +176,6 @@ const DashboardPage = () => {
         </Card>
       </div>
       
-      {/* Search and Filters */}
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="text-lg">Search & Filter Terminals</CardTitle>
@@ -229,7 +245,6 @@ const DashboardPage = () => {
         </CardContent>
       </Card>
       
-      {/* Terminals Table */}
       <Tabs defaultValue="all" className="mb-8">
         <TabsList className="mb-4">
           <TabsTrigger value="all">All Terminals</TabsTrigger>
@@ -238,15 +253,15 @@ const DashboardPage = () => {
         </TabsList>
         
         <TabsContent value="all">
-          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals} />}
+          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals} onDelete={handleDeleteTerminal} />}
         </TabsContent>
         
         <TabsContent value="dispatched">
-          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => !t.isReturned)} />}
+          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => !t.isReturned)} onDelete={handleDeleteTerminal} />}
         </TabsContent>
         
         <TabsContent value="returned">
-          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => t.isReturned)} />}
+          {isLoading ? <LoadingState /> : <TerminalTable terminals={filteredTerminals.filter(t => t.isReturned)} onDelete={handleDeleteTerminal} />}
         </TabsContent>
       </Tabs>
     </div>
@@ -264,9 +279,10 @@ const LoadingState = () => {
 
 interface TerminalTableProps {
   terminals: Terminal[];
+  onDelete: (terminalId: string) => void;
 }
 
-const TerminalTable = ({ terminals }: TerminalTableProps) => {
+const TerminalTable = ({ terminals, onDelete }: TerminalTableProps) => {
   if (terminals.length === 0) {
     return (
       <div className="text-center py-8 bg-gray-50 rounded-lg">
@@ -320,6 +336,11 @@ const TerminalTable = ({ terminals }: TerminalTableProps) => {
                   Status
                 </div>
               </th>
+              <th className="py-3 px-4 text-left font-medium">
+                <div className="flex items-center">
+                  Actions
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -346,6 +367,16 @@ const TerminalTable = ({ terminals }: TerminalTableProps) => {
                       Dispatched
                     </span>
                   )}
+                </td>
+                <td className="py-3 px-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => onDelete(terminal.id)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
                 </td>
               </tr>
             ))}

@@ -33,7 +33,7 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/return" className="text-white/80 hover:text-white text-sm transition-colors">
-                  Returned Terminal
+                  Returned Terminals
                 </Link>
               </li>
             </ul>
