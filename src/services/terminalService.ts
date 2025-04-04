@@ -173,6 +173,7 @@ export const fetchFilteredTerminals = async (filters: {
   startDate?: string;
   endDate?: string;
   searchTerm?: string;
+  isReturned?: boolean;
 }): Promise<Terminal[]> => {
   let query = supabase.from('terminals').select('*');
 
@@ -191,6 +192,11 @@ export const fetchFilteredTerminals = async (filters: {
   if (filters.searchTerm) {
     const term = filters.searchTerm.toLowerCase();
     query = query.or(`name.ilike.%${term}%,terminal_id.ilike.%${term}%,serial_number.ilike.%${term}%`);
+  }
+
+  // Add filter by return status if specified
+  if (filters.isReturned !== undefined) {
+    query = query.eq('is_returned', filters.isReturned);
   }
 
   const { data, error } = await query;
