@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Branch, Terminal, TerminalType } from "@/store/terminalStore";
 
@@ -50,12 +51,6 @@ export const mapToSupabaseTerminal = (terminal: Omit<Terminal, "id" | "isReturne
   };
 };
 
-export interface TerminalStats {
-  total: number;
-  active: number;
-  returned: number;
-}
-
 // Fetch all terminals from Supabase
 export const fetchTerminals = async (): Promise<Terminal[]> => {
   const { data, error } = await supabase
@@ -70,21 +65,9 @@ export const fetchTerminals = async (): Promise<Terminal[]> => {
   return (data as SupabaseTerminal[]).map(mapToAppTerminal);
 };
 
-// Revise the function signature to match what the component is passing
-export const addTerminal = async (terminalData: Partial<Omit<Terminal, "id" | "isReturned">> & { dispatchDate: string }): Promise<Terminal> => {
-  // Ensure required fields have default values if not provided
-  const supabaseTerminal = mapToSupabaseTerminal({
-    name: terminalData.name || '',
-    terminalId: terminalData.terminalId || '',
-    serialNumber: terminalData.serialNumber || '',
-    lineSerialNumber: terminalData.lineSerialNumber || '',
-    type: terminalData.type || 'iPOS',
-    branch: terminalData.branch || 'Masvingo Branch',
-    dispatchDate: terminalData.dispatchDate,
-    fedexTrackingNumber: terminalData.fedexTrackingNumber,
-    returnDate: undefined,
-    returnReason: undefined,
-  });
+// Add a new terminal to Supabase
+export const addTerminal = async (terminalData: Omit<Terminal, "id" | "isReturned">): Promise<Terminal> => {
+  const supabaseTerminal = mapToSupabaseTerminal(terminalData);
   
   const { data, error } = await supabase
     .from('terminals')
@@ -115,39 +98,6 @@ export const addTerminals = async (terminalsData: Omit<Terminal, "id" | "isRetur
   }
 
   return (data as SupabaseTerminal[]).map(mapToAppTerminal);
-};
-
-// Fetch terminal statistics
-export const fetchTerminalStats = async (): Promise<TerminalStats> => {
-  // Get total count
-  const { count: total, error: totalError } = await supabase
-    .from('terminals')
-    .select('*', { count: 'exact', head: true });
-
-  if (totalError) {
-    console.error('Error fetching total terminals:', totalError);
-    throw totalError;
-  }
-
-  // Get returned count
-  const { count: returned, error: returnedError } = await supabase
-    .from('terminals')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_returned', true);
-
-  if (returnedError) {
-    console.error('Error fetching returned terminals:', returnedError);
-    throw returnedError;
-  }
-
-  // Calculate active count
-  const active = (total || 0) - (returned || 0);
-
-  return {
-    total: total || 0,
-    active: active,
-    returned: returned || 0
-  };
 };
 
 // Mark a terminal as returned in Supabase
