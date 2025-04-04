@@ -18,7 +18,7 @@ export function DashboardStats() {
   const handleDownloadReport = async (type: 'total' | 'active' | 'returned') => {
     try {
       // Fetch data based on report type
-      const filters: any = {};
+      const filters: Record<string, any> = {};
       if (type === 'returned') {
         filters.isReturned = true;
       } else if (type === 'active') {
