@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { fetchFilteredTerminals, deleteTerminal } from '@/services/terminalService';
+import { fetchFilteredTerminals, deleteTerminal, deleteAllTerminals } from '@/services/terminalService';
 import { Branch, Terminal } from '@/store/terminalStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,7 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Search, Calendar, Filter } from 'lucide-react';
+import { Trash2, Search, Calendar, Filter, AlertTriangle } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +33,7 @@ export default function DashboardPage() {
   const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
   const [isReturnDetailsOpen, setIsReturnDetailsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -51,6 +51,7 @@ export default function DashboardPage() {
     mutationFn: (id: string) => deleteTerminal(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      queryClient.invalidateQueries({ queryKey: ['terminalStats'] });
       toast({
         title: "Terminal Deleted",
         description: "The terminal has been successfully deleted",
@@ -66,10 +67,34 @@ export default function DashboardPage() {
     }
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: deleteAllTerminals,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terminals'] });
+      queryClient.invalidateQueries({ queryKey: ['terminalStats'] });
+      toast({
+        title: "All Terminals Deleted",
+        description: "All terminals have been successfully deleted from the database",
+      });
+      setIsDeleteAllDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to delete all terminals: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
+    }
+  });
+
   const handleDeleteConfirm = () => {
     if (selectedTerminal) {
       deleteMutation.mutate(selectedTerminal.id);
     }
+  };
+
+  const handleDeleteAllConfirm = () => {
+    deleteAllMutation.mutate();
   };
 
   const handleDelete = (terminal: Terminal) => {
@@ -82,7 +107,6 @@ export default function DashboardPage() {
     setIsReturnDetailsOpen(true);
   };
 
-  // Format date for display
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     return format(new Date(dateString), 'MMM d, yyyy');
@@ -115,7 +139,6 @@ export default function DashboardPage() {
           <CardDescription>Manage and monitor POS terminals</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Add the stats component here */}
           <DashboardStats />
           
           <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 mb-6">
@@ -196,6 +219,16 @@ export default function DashboardPage() {
                 Reset Filters
               </Button>
             </div>
+            <div className="w-full md:w-auto ml-auto">
+              <Button 
+                variant="destructive" 
+                onClick={() => setIsDeleteAllDialogOpen(true)}
+                className="w-full md:w-auto"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete All Terminals
+              </Button>
+            </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -266,7 +299,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
       
-      {/* Return Details Dialog */}
       <Dialog open={isReturnDetailsOpen} onOpenChange={setIsReturnDetailsOpen}>
         <DialogContent>
           <DialogHeader>
@@ -291,7 +323,6 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -306,6 +337,31 @@ export default function DashboardPage() {
               <Button variant="outline">Cancel</Button>
             </DialogClose>
             <Button variant="destructive" onClick={handleDeleteConfirm}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-red-600">
+              <AlertTriangle className="h-5 w-5 mr-2" /> Delete All Terminals
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete ALL terminals from the database? 
+              This action cannot be undone and will permanently remove all terminal records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-red-50 p-4 rounded-md border border-red-200 my-2">
+            <p className="text-sm text-red-800 font-medium">Warning: This will delete {terminals.length} terminals from the database.</p>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={handleDeleteAllConfirm}>
+              Delete All Terminals
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

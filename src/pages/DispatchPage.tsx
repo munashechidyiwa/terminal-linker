@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -34,7 +33,7 @@ const formSchema = z.object({
     .min(1, { message: 'Line serial number is required' })
     .min(16, { message: 'Line serial number must be at least 16 characters' })
     .max(18, { message: 'Line serial number must be 18 characters or less' }),
-  type: z.enum(['iPOS', 'Aisini A75', 'Verifone X990', 'PAX S20'], { 
+  type: z.enum(['iPOS', 'Aisino A75', 'Verifone X990', 'PAX S20'], { 
     required_error: 'Terminal type is required' 
   }),
   branch: z.string({ required_error: 'Branch is required' }),
@@ -64,8 +63,14 @@ export default function DispatchPage() {
   });
   
   const singleMutation = useMutation({
-    mutationFn: (values: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">) => {
-      return addTerminal(values);
+    mutationFn: (values: FormValues) => {
+      const terminalData: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason"> = {
+        ...values,
+        dispatchDate: values.dispatchDate.toISOString(),
+        branch: values.branch as Branch,
+        type: values.type,
+      };
+      return addTerminal(terminalData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['terminals'] });
@@ -115,11 +120,7 @@ export default function DispatchPage() {
   });
   
   const onSubmit = (values: FormValues) => {
-    const terminalData: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason"> = {
-      ...values,
-      dispatchDate: values.dispatchDate.toISOString(),
-    };
-    singleMutation.mutate(terminalData);
+    singleMutation.mutate(values);
   };
   
   const handleBatchUpload = (data: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">[]) => {
@@ -237,7 +238,7 @@ export default function DispatchPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="iPOS">iPOS</SelectItem>
-                              <SelectItem value="Aisini A75">Aisini A75</SelectItem>
+                              <SelectItem value="Aisino A75">Aisino A75</SelectItem>
                               <SelectItem value="Verifone X990">Verifone X990</SelectItem>
                               <SelectItem value="PAX S20">PAX S20</SelectItem>
                             </SelectContent>

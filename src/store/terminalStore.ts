@@ -1,5 +1,5 @@
 
-export type TerminalType = 'iPOS' | 'Aisini A75' | 'Verifone X990' | 'PAX S20';
+export type TerminalType = 'iPOS' | 'Aisino A75' | 'Verifone X990' | 'PAX S20';
 
 export type Branch = 
   | 'Masvingo Branch' 

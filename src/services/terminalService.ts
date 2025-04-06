@@ -243,3 +243,16 @@ export const deleteTerminal = async (terminalId: string) => {
   
   return true;
 };
+
+// Delete all terminals from the database
+export const deleteAllTerminals = async (): Promise<void> => {
+  const { error } = await supabase
+    .from('terminals')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000'); // This condition ensures all rows are deleted
+
+  if (error) {
+    console.error('Error deleting all terminals:', error);
+    throw error;
+  }
+};

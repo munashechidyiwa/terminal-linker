@@ -2,12 +2,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchTerminalStats, fetchFilteredTerminals } from '@/services/terminalService';
-import { LayoutDashboard, ArrowUp, ArrowDown, Download } from 'lucide-react';
+import { LayoutDashboard, ArrowUp, ArrowDown, Download, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { downloadTerminalsReport } from '@/utils/excelUtils';
+import { useState } from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function DashboardStats() {
+  const [filter, setFilter] = useState<'all' | 'active' | 'returned'>('all');
   const { data: stats, isLoading } = useQuery({
     queryKey: ['terminalStats'],
     queryFn: fetchTerminalStats,
@@ -45,78 +48,101 @@ export function DashboardStats() {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-3 mb-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Terminals</CardTitle>
-          <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? '...' : stats?.total || 0}</div>
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-muted-foreground">
-              Total terminals in the system
-            </p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-7 px-2 text-xs"
-              onClick={() => handleDownloadReport('total')}
-            >
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Terminals</CardTitle>
-          <ArrowUp className="h-4 w-4 text-green-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? '...' : stats?.active || 0}</div>
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-muted-foreground">
-              Currently dispatched terminals
-            </p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-7 px-2 text-xs"
-              onClick={() => handleDownloadReport('active')}
-            >
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Returned Terminals</CardTitle>
-          <ArrowDown className="h-4 w-4 text-amber-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? '...' : stats?.returned || 0}</div>
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-muted-foreground">
-              Terminals that have been returned
-            </p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-7 px-2 text-xs"
-              onClick={() => handleDownloadReport('returned')}
-            >
-              <Download className="h-3 w-3 mr-1" />
-              Export
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium">Terminal Statistics</h3>
+        <Tabs 
+          value={filter} 
+          onValueChange={(value) => setFilter(value as 'all' | 'active' | 'returned')}
+          className="w-auto"
+        >
+          <TabsList>
+            <TabsTrigger value="all" className="text-xs px-3">All Terminals</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs px-3">Active Only</TabsTrigger>
+            <TabsTrigger value="returned" className="text-xs px-3">Returned Only</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
+        {(filter === 'all' || filter === 'active') && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Terminals</CardTitle>
+              <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{isLoading ? '...' : stats?.total || 0}</div>
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  Total terminals in the system
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2 text-xs"
+                  onClick={() => handleDownloadReport('total')}
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Export
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {(filter === 'all' || filter === 'active') && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Terminals</CardTitle>
+              <ArrowUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{isLoading ? '...' : stats?.active || 0}</div>
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  Currently dispatched terminals
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2 text-xs"
+                  onClick={() => handleDownloadReport('active')}
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Export
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {(filter === 'all' || filter === 'returned') && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Returned Terminals</CardTitle>
+              <ArrowDown className="h-4 w-4 text-amber-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{isLoading ? '...' : stats?.returned || 0}</div>
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  Terminals that have been returned
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2 text-xs"
+                  onClick={() => handleDownloadReport('returned')}
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Export
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
