@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addTerminal, addTerminals } from '@/services/terminalService';
+import { addTerminal, addTerminals, deleteAllTerminals } from '@/services/terminalService';
 import { Terminal, TerminalType, Branch } from '@/store/terminalStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -13,11 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon, Plus } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExcelUploader } from '@/components/ExcelUploader';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const formSchema = z.object({
   name: z.string()
@@ -65,10 +66,14 @@ export default function DispatchPage() {
   const singleMutation = useMutation({
     mutationFn: (values: FormValues) => {
       const terminalData: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason"> = {
-        ...values,
+        name: values.name,
+        terminalId: values.terminalId,
+        serialNumber: values.serialNumber,
+        lineSerialNumber: values.lineSerialNumber,
         dispatchDate: values.dispatchDate.toISOString(),
         branch: values.branch as Branch,
         type: values.type,
+        fedexTrackingNumber: values.fedexTrackingNumber,
       };
       return addTerminal(terminalData);
     },

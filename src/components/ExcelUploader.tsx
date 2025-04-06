@@ -55,7 +55,7 @@ export function ExcelUploader({ onDataExtracted, isProcessing }: ExcelUploaderPr
           }
           
           // Validate terminal type
-          const validTypes = ['iPOS', 'Aisini A75', 'Verifone X990', 'PAX S20'];
+          const validTypes = ['iPOS', 'Aisino A75', 'Verifone X990', 'PAX S20'];
           if (!validTypes.includes(row.type)) {
             throw new Error(`Invalid terminal type: ${row.type}`);
           }

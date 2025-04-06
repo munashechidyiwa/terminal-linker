@@ -16,7 +16,6 @@ export interface SupabaseTerminal {
   return_reason?: string;
 }
 
-// Convert from Supabase format to our app format
 export const mapToAppTerminal = (terminal: SupabaseTerminal): Terminal => {
   return {
     id: terminal.id,
@@ -34,7 +33,6 @@ export const mapToAppTerminal = (terminal: SupabaseTerminal): Terminal => {
   };
 };
 
-// Convert from our app format to Supabase format
 export const mapToSupabaseTerminal = (terminal: Omit<Terminal, "id" | "isReturned">): Omit<SupabaseTerminal, "id" | "is_returned"> => {
   return {
     branch: terminal.branch,
@@ -56,7 +54,6 @@ export interface TerminalStats {
   returned: number;
 }
 
-// Fetch all terminals from Supabase
 export const fetchTerminals = async (): Promise<Terminal[]> => {
   const { data, error } = await supabase
     .from('terminals')
@@ -70,21 +67,8 @@ export const fetchTerminals = async (): Promise<Terminal[]> => {
   return (data as SupabaseTerminal[]).map(mapToAppTerminal);
 };
 
-// Revise the function signature to match what the component is passing
-export const addTerminal = async (terminalData: Partial<Omit<Terminal, "id" | "isReturned">> & { dispatchDate: string }): Promise<Terminal> => {
-  // Ensure required fields have default values if not provided
-  const supabaseTerminal = mapToSupabaseTerminal({
-    name: terminalData.name || '',
-    terminalId: terminalData.terminalId || '',
-    serialNumber: terminalData.serialNumber || '',
-    lineSerialNumber: terminalData.lineSerialNumber || '',
-    type: terminalData.type || 'iPOS',
-    branch: terminalData.branch || 'Masvingo Branch',
-    dispatchDate: terminalData.dispatchDate,
-    fedexTrackingNumber: terminalData.fedexTrackingNumber,
-    returnDate: undefined,
-    returnReason: undefined,
-  });
+export const addTerminal = async (terminalData: Omit<Terminal, "id" | "isReturned" | "returnDate" | "returnReason">): Promise<Terminal> => {
+  const supabaseTerminal = mapToSupabaseTerminal(terminalData);
   
   const { data, error } = await supabase
     .from('terminals')
@@ -100,7 +84,6 @@ export const addTerminal = async (terminalData: Partial<Omit<Terminal, "id" | "i
   return mapToAppTerminal(data as SupabaseTerminal);
 };
 
-// Add multiple terminals to Supabase
 export const addTerminals = async (terminalsData: Omit<Terminal, "id" | "isReturned">[]): Promise<Terminal[]> => {
   const supabaseTerminals = terminalsData.map(mapToSupabaseTerminal);
   
@@ -117,9 +100,7 @@ export const addTerminals = async (terminalsData: Omit<Terminal, "id" | "isRetur
   return (data as SupabaseTerminal[]).map(mapToAppTerminal);
 };
 
-// Fetch terminal statistics
 export const fetchTerminalStats = async (): Promise<TerminalStats> => {
-  // Get total count
   const { count: total, error: totalError } = await supabase
     .from('terminals')
     .select('*', { count: 'exact', head: true });
@@ -129,7 +110,6 @@ export const fetchTerminalStats = async (): Promise<TerminalStats> => {
     throw totalError;
   }
 
-  // Get returned count
   const { count: returned, error: returnedError } = await supabase
     .from('terminals')
     .select('*', { count: 'exact', head: true })
@@ -140,7 +120,6 @@ export const fetchTerminalStats = async (): Promise<TerminalStats> => {
     throw returnedError;
   }
 
-  // Calculate active count
   const active = (total || 0) - (returned || 0);
 
   return {
@@ -150,7 +129,6 @@ export const fetchTerminalStats = async (): Promise<TerminalStats> => {
   };
 };
 
-// Mark a terminal as returned in Supabase
 export const markTerminalAsReturned = async (id: string, returnReason: string): Promise<void> => {
   const { error } = await supabase
     .from('terminals')
@@ -167,7 +145,6 @@ export const markTerminalAsReturned = async (id: string, returnReason: string): 
   }
 };
 
-// Fetch filtered terminals from Supabase
 export const fetchFilteredTerminals = async (filters: {
   branch?: Branch;
   startDate?: string;
@@ -194,7 +171,6 @@ export const fetchFilteredTerminals = async (filters: {
     query = query.or(`name.ilike.%${term}%,terminal_id.ilike.%${term}%,serial_number.ilike.%${term}%`);
   }
 
-  // Add filter by return status if specified
   if (filters.isReturned !== undefined) {
     query = query.eq('is_returned', filters.isReturned);
   }
@@ -209,7 +185,6 @@ export const fetchFilteredTerminals = async (filters: {
   return (data as SupabaseTerminal[]).map(mapToAppTerminal);
 };
 
-// Get terminal by ID
 export const getTerminalById = async (id: string): Promise<Terminal | null> => {
   const { data, error } = await supabase
     .from('terminals')
@@ -219,7 +194,6 @@ export const getTerminalById = async (id: string): Promise<Terminal | null> => {
 
   if (error) {
     if (error.code === 'PGRST116') {
-      // No rows returned
       return null;
     }
     console.error('Error fetching terminal by id:', error);
@@ -229,7 +203,6 @@ export const getTerminalById = async (id: string): Promise<Terminal | null> => {
   return mapToAppTerminal(data as SupabaseTerminal);
 };
 
-// Update this function to use Supabase instead of localStorage
 export const deleteTerminal = async (terminalId: string) => {
   const { error } = await supabase
     .from('terminals')
@@ -244,12 +217,11 @@ export const deleteTerminal = async (terminalId: string) => {
   return true;
 };
 
-// Delete all terminals from the database
 export const deleteAllTerminals = async (): Promise<void> => {
   const { error } = await supabase
     .from('terminals')
     .delete()
-    .neq('id', '00000000-0000-0000-0000-000000000000'); // This condition ensures all rows are deleted
+    .neq('id', '00000000-0000-0000-0000-000000000000');
 
   if (error) {
     console.error('Error deleting all terminals:', error);
