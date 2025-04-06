@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -23,6 +24,7 @@ import { Trash2, Search, Calendar, Filter, AlertTriangle } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardStats } from '@/components/DashboardStats';
 
 export default function DashboardPage() {
@@ -30,6 +32,7 @@ export default function DashboardPage() {
   const [branch, setBranch] = useState<Branch | ''>('');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [terminalStatus, setTerminalStatus] = useState<'all' | 'active' | 'returned'>('all');
   const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
   const [isReturnDetailsOpen, setIsReturnDetailsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -38,12 +41,13 @@ export default function DashboardPage() {
   const { toast } = useToast();
 
   const { data: terminals = [], isLoading, error } = useQuery({
-    queryKey: ['terminals', branch, startDate, endDate, searchTerm],
+    queryKey: ['terminals', branch, startDate, endDate, searchTerm, terminalStatus],
     queryFn: () => fetchFilteredTerminals({
       branch: branch || undefined,
       startDate: startDate?.toISOString(),
       endDate: endDate?.toISOString(),
       searchTerm,
+      isReturned: terminalStatus === 'all' ? undefined : terminalStatus === 'returned'
     }),
   });
 
@@ -117,6 +121,7 @@ export default function DashboardPage() {
     setStartDate(undefined);
     setEndDate(undefined);
     setSearchTerm('');
+    setTerminalStatus('all');
   };
 
   if (error) {
@@ -229,6 +234,20 @@ export default function DashboardPage() {
                 Delete All Terminals
               </Button>
             </div>
+          </div>
+          
+          <div className="mb-4">
+            <Tabs 
+              value={terminalStatus} 
+              onValueChange={(value) => setTerminalStatus(value as 'all' | 'active' | 'returned')}
+              className="w-auto"
+            >
+              <TabsList>
+                <TabsTrigger value="all" className="px-4">All Terminals</TabsTrigger>
+                <TabsTrigger value="active" className="px-4">Active Only</TabsTrigger>
+                <TabsTrigger value="returned" className="px-4">Returned Only</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
           
           <div className="overflow-x-auto">
