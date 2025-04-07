@@ -145,6 +145,22 @@ export const markTerminalAsReturned = async (id: string, returnReason: string): 
   }
 };
 
+export const reactivateTerminal = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('terminals')
+    .update({ 
+      is_returned: false,
+      return_date: null,
+      return_reason: null
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error reactivating terminal:', error);
+    throw error;
+  }
+};
+
 export const fetchFilteredTerminals = async (filters: {
   branch?: Branch;
   startDate?: string;

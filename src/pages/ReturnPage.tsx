@@ -1,160 +1,193 @@
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchTerminals, markTerminalAsReturned } from '@/services/terminalService';
-import { Terminal } from '@/store/terminalStore';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { fetchFilteredTerminals, markTerminalAsReturned } from '@/services/terminalService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-
-const formSchema = z.object({
-  terminalId: z.string({ required_error: "Please select a terminal" }),
-  returnReason: z.string().min(3, { message: "Return reason must be at least 3 characters" }).max(255, { message: "Return reason must be less than 255 characters" }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter,
+  DialogClose
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Search } from 'lucide-react';
 
 export default function ReturnPage() {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [selectedTerminalId, setSelectedTerminalId] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
-  
-  const { data: terminals = [], isLoading, error } = useQuery({
-    queryKey: ['terminals'],
-    queryFn: fetchTerminals,
+  const { toast } = useToast();
+
+  // Fetch only active terminals
+  const { data: terminals = [], isLoading } = useQuery({
+    queryKey: ['activeTerminals', searchTerm],
+    queryFn: () => fetchFilteredTerminals({ 
+      isReturned: false,
+      searchTerm: searchTerm
+    }),
   });
-  
-  const activeTerminals = terminals.filter(terminal => !terminal.isReturned);
-  
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      terminalId: '',
-      returnReason: '',
-    },
-  });
-  
+
   const returnMutation = useMutation({
-    mutationFn: ({ terminalId, returnReason }: FormValues) => {
-      return markTerminalAsReturned(terminalId, returnReason);
-    },
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => 
+      markTerminalAsReturned(id, reason),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activeTerminals'] });
       queryClient.invalidateQueries({ queryKey: ['terminals'] });
-      form.reset();
-      setIsSubmitting(false);
+      queryClient.invalidateQueries({ queryKey: ['terminalStats'] });
       toast({
-        title: 'Terminal Returned',
-        description: 'The terminal has been marked as returned successfully.',
+        title: "Terminal Returned",
+        description: "The terminal has been marked as returned",
       });
+      setReturnReason('');
+      setSelectedTerminalId(null);
+      setIsDialogOpen(false);
     },
     onError: (error) => {
-      setIsSubmitting(false);
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: `Failed to return terminal: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to mark terminal as returned: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
-    },
+    }
   });
-  
-  function onSubmit(values: FormValues) {
-    setIsSubmitting(true);
-    returnMutation.mutate(values);
-  }
-  
-  if (error) {
-    return (
-      <div className="container max-w-4xl py-12">
-        <Card className="bg-red-50">
-          <CardContent className="pt-6">
-            <p className="text-red-500">Error loading terminals: {error instanceof Error ? error.message : 'Unknown error'}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-  
+
+  const handleOpenDialog = (terminalId: string) => {
+    setSelectedTerminalId(terminalId);
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedTerminalId) {
+      returnMutation.mutate({ 
+        id: selectedTerminalId, 
+        reason: returnReason 
+      });
+    }
+  };
+
+  const selectedTerminal = terminals.find(terminal => terminal.id === selectedTerminalId);
+
   return (
-    <div className="container max-w-4xl py-12">
+    <div className="container py-10">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Returned Terminals</CardTitle>
-          <CardDescription className="text-center">Process returned terminals easily</CardDescription>
+          <CardTitle className="text-2xl font-bold">Return Terminal</CardTitle>
+          <CardDescription>Mark a terminal as returned</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="terminalId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select Terminal</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a terminal to mark as returned" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {isLoading ? (
-                          <SelectItem value="loading-terminals">
-                            Loading terminals...
-                          </SelectItem>
-                        ) : activeTerminals.length === 0 ? (
-                          <SelectItem value="no-active-terminals">
-                            No active terminals to return
-                          </SelectItem>
-                        ) : (
-                          activeTerminals.map((terminal) => (
-                            <SelectItem key={terminal.id} value={terminal.id}>
-                              {terminal.name} - {terminal.terminalId}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+          <div className="mb-6">
+            <div className="relative w-full md:w-1/2 mb-4">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search by name, terminal ID, or serial number"
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
-              
-              <FormField
-                control={form.control}
-                name="returnReason"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Return Reason</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Please provide a reason for returning this terminal" 
-                        {...field} 
-                        className="resize-none" 
-                        rows={4}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+            </div>
+            <p className="text-sm text-muted-foreground">Select a terminal to mark as returned</p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Merchant Name</TableHead>
+                  <TableHead>Terminal ID</TableHead>
+                  <TableHead>Serial Number</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10">
+                      Loading terminals...
+                    </TableCell>
+                  </TableRow>
+                ) : terminals.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10">
+                      No active terminals found. All terminals may have been returned.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  terminals.map((terminal) => (
+                    <TableRow key={terminal.id}>
+                      <TableCell>{terminal.name}</TableCell>
+                      <TableCell>{terminal.terminalId}</TableCell>
+                      <TableCell>{terminal.serialNumber}</TableCell>
+                      <TableCell>{terminal.type}</TableCell>
+                      <TableCell>{terminal.branch}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-100 text-green-800">Active</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          onClick={() => handleOpenDialog(terminal.id)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Return
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
-              />
-              
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isSubmitting || isLoading || activeTerminals.length === 0}
-              >
-                {isSubmitting ? "Processing..." : "Mark as Returned"}
-              </Button>
-            </form>
-          </Form>
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return Terminal</DialogTitle>
+            <DialogDescription>
+              You are about to mark {selectedTerminal?.name} ({selectedTerminal?.terminalId}) as returned.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Return Reason</h4>
+                <Textarea
+                  placeholder="Specify the reason for returning this terminal"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter className="mt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button 
+                type="submit" 
+                disabled={returnMutation.isPending}
+              >
+                {returnMutation.isPending ? 'Processing...' : 'Confirm Return'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
