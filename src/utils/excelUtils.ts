@@ -115,7 +115,7 @@ export const downloadFilteredTerminalsReport = async (
   // Convert to Blob and save
   const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   
-  // Generate filename with date and filter info
+  // Generate filename with date
   const now = new Date();
   const dateStr = format(now, 'yyyy-MM-dd');
   const fileName = `Filtered_Terminals_Report_${dateStr}.xlsx`;
